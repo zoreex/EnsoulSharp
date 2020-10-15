@@ -9,5 +9,5 @@ xd</br>
 # Placeholder
 --
 #
-##~ZRX
+~ZRX
 #
