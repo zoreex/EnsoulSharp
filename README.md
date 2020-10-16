@@ -21,5 +21,4 @@ R</br>
 </br>
 </br>
 </br>
-</br>
-~ Thanks to [GerPhoenix](https://github.com/GerPhoenix) for helping me
+Thanks to [GerPhoenix](https://github.com/GerPhoenix) for helping me</br>
