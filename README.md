@@ -16,7 +16,7 @@ W</br>
 E</br>
 R</br>
 #
-##~ZRX
+## ~ZRX
 #
 Special thanks to:
 > [GerPhoenix](https://github.com/GerPhoenix)
