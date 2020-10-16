@@ -18,7 +18,5 @@ R</br>
 #
 ~ZRX
 #
-</br>
-</br>
-</br>
 Thanks to [GerPhoenix](https://github.com/GerPhoenix) for helping me
+#
