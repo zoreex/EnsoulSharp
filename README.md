@@ -18,5 +18,6 @@ R</br>
 #
 ~ZRX
 #
-Thanks to [GerPhoenix](https://github.com/GerPhoenix) for helping me
+Special thanks to:
+> [GerPhoenix](https://github.com/GerPhoenix)
 #
