@@ -10,7 +10,6 @@ Q</br>
 W</br>
 E</br>
 R</br>
-~ Thanks to [GerPhoenix](https://github.com/GerPhoenix) for helping me
 ### Placeholder
 Q</br>
 W</br>
@@ -19,3 +18,8 @@ R</br>
 #
 ~ZRX
 #
+</br>
+</br>
+</br>
+</br>
+~ Thanks to [GerPhoenix](https://github.com/GerPhoenix) for helping me
