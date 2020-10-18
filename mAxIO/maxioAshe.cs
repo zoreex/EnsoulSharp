@@ -1,6 +1,4 @@
-﻿using SharpDX;
-
-namespace mAxIO
+﻿namespace mAxIO
 {
     using System;
     using System.Linq;
@@ -24,82 +22,85 @@ namespace mAxIO
             Q = new Spell(SpellSlot.Q, 575f);
 
             W = new Spell(SpellSlot.W, 1175);
-            W.SetSkillshot(0.25f, 20f, 2000, true, SkillshotType.Cone);
+            W.SetSkillshot(0.25f, 20f, 2000, true, SkillshotType.Line);
 
             R = new Spell(SpellSlot.R, 1750);
             R.SetSkillshot(0.25f, 86f, 1600, true, SkillshotType.Line);
 
             // Main Menu
-            MainMenu = new Menu("Budget Ashe", "Budget Ashe", true);
+            MainMenu = new Menu("mAxIO Ashe", "mAxIO Ashe", true);
 
             // Combo Menu
-            var comboMenu = new Menu("Combo", "Budget Combo")
+            var comboMenu = new Menu("Combo", "Combo")
             {
-                new MenuSeparator("spacerCombo", "Budget Combo Menu"),
+                new MenuSeparator("spacerCombo", "Combo Menu"),
                 new MenuBool("comboQ", "Use Q", true),
                 new MenuBool("comboW", "Use W", true),
-                new MenuBool("comboWonlyOutOfAA", "^ Use W only out of AA-Range", true),
+                new MenuBool("comboWonlyOutOfAA", "^ Use W only out of AA-Range", false),
                 new MenuBool("comboR", "Use R", true),
-                //new MenuSeparator("comboRclose", "^ Will aim Ult close to Cursor if out of AA Range")
-                //new MenuSlider("comboRrange", "R Range", 0, 50, 6000)
             };
             MainMenu.Add(comboMenu);
 
             // Jungle Clear Menu
-            var jungleMenu = new Menu("Jungle", "Budget Jungle")
+            var jungleMenu = new Menu("Jungle", "Jungle")
             {
-                new MenuSeparator("spacerJungle", "Budget Jungle Menu"),
-                new MenuBool("jungleQ", "Use Q in Jungle", true),
+                new MenuSeparator("spacerJungle", "Jungle Menu"),
+                new MenuBool("jungleQ", "Use Q in Jungle", false),
+                new MenuSlider("jungleQMana", "^ Min. Mana% for Q", 50, 0, 100),
+                new MenuBool("jungleW", "Use W in Jungle", true),
+                new MenuSlider("jungleWMana", "^ Min. Mana% for W", 30, 0, 100)
             };
             MainMenu.Add(jungleMenu);
 
-            // Auto Menu
-            var autoMenu = new Menu("Autocast", "Budget Autocast")
+            // Misc Menu - Auto - Killsteal - Drawing
+            var miscMenu = new Menu("Misc", "Misc")
             {
-                new MenuSeparator("spacerAuto", "Budget Auto-Cast Menu"),
-                new MenuBool("autoW", "Auto-Cast W on Stunned", true),
-                new MenuBool("autoR", "Auto-Cast R on Stunned", false)
+                // AutoCast Menu
+                new Menu("Autocast", "Autocast")
+                {
+                    new MenuSeparator("spacerAuto", "Auto-Cast Menu"),
+                    new MenuBool("autoW", "Auto-Cast W on Stunned", true),
+                    new MenuBool("autoR", "Auto-Cast R on Stunned", false)
+                },
+                // KillSteal Menu
+                new Menu("Killsteal", "Killsteal")
+                {
+                    new MenuSeparator("spacerKillsteal", "Killsteal Menu"),
+                    new MenuBool("killstealAA", "Killsteal with AutoAttack", true),
+                    new MenuSlider("killstealAALvl", "^ Min. Lvl (9 Recommended)", 9, 1, 18),
+                    new MenuBool("killstealW", "Killsteal W", true)
+                },
+                // Draw Menu
+                new Menu("Drawing", "Drawings")
+                {
+                    new MenuSeparator("spacerDraw", "Drawings Menu"),
+                    new MenuBool("drawW", "W Range", false),
+                    new MenuBool("drawR", "R Range", true)
+                }
             };
-            MainMenu.Add(autoMenu);
-
-            // KillSteal Menu
-
-            var killStealMenu = new Menu("Killsteal", "Budget Killsteal")
-            {
-                new MenuSeparator("spacerKillsteal", "Budget Killsteal Menu"),
-                new MenuBool("killstealAA", "Killsteal with AA", true),
-                new MenuSlider("killstealAALvl", "^ Min. Lvl for AA to Killsteal", 9, 1, 18),
-                new MenuBool("killstealW", "Killsteal W", true)
-            };
-            MainMenu.Add(killStealMenu);
-
-
-            // Draw Menu
-            var drawMenu = new Menu("Drawing", "Budget Drawings")
-            {
-                new MenuSeparator("spacerDraw", "Budget Draw Menu"),
-                new MenuBool("drawW", "W Range", true),
-                new MenuBool("drawR", "R Range", true)
-            };
-            MainMenu.Add(drawMenu);
+            MainMenu.Add(miscMenu);
 
             MainMenu.Attach();
 
             Game.OnUpdate += OnUpdate;
-            Orbwalker.OnAction += OrbwalkerModeCombo;
+            Orbwalker.OnAction += OrbwalkerMode;
 
             Drawing.OnDraw += OnDraw;
         }
 
-        private static void OrbwalkerModeCombo(object obj, OrbwalkerActionArgs args)
+        private static void OrbwalkerMode(object obj, OrbwalkerActionArgs args)
         {
-            if (Orbwalker.ActiveMode == OrbwalkerMode.Combo)
+            if (Orbwalker.ActiveMode == EnsoulSharp.SDK.OrbwalkerMode.Combo)
             {
                 QCombo(args);
-
                 WCombo(args);
-
                 RCombo(args);
+            }
+
+            if (Orbwalker.ActiveMode == EnsoulSharp.SDK.OrbwalkerMode.LaneClear)
+            {
+                LaneClear(args);
+                JungleClear(args);
             }
         }
 
@@ -143,55 +144,77 @@ namespace mAxIO
             if (MainMenu["Combo"]["comboR"].GetValue<MenuBool>().Enabled && R.IsReady())
             {
                 AIHeroClient target;
-                // select target
                 if ((target = TargetSelector.GetTarget(ObjectManager.Player.GetRealAutoAttackRange())) == null)
                 {
-                    if ((target = TargetSelector.GetTargets(R.Range).OrderBy(x => x.DistanceToPlayer()).FirstOrDefault()) == null)
-                        return;
+                    if ((target = TargetSelector.GetTargets(R.Range).OrderBy(x => x.DistanceToPlayer()).FirstOrDefault()) != null
+                        && !target.IsUnderEnemyTurret())
+                    {
+                        R.Cast(R.GetPrediction(target).CastPosition);
+                    }
                 }
                 else if (args.Type == OrbwalkerType.AfterAttack)
-                    return;
-
-                // attack target
-                R.Cast(R.GetPrediction(target).CastPosition);
+                {
+                    R.Cast(R.GetPrediction(target).UnitPosition);
+                }
             }
         }
 
-//        private static void AutoCastW2()
-//        {
-//            if (MainMenu["Autocast"]["autoW"].GetValue<MenuBool>().Enabled && W.IsReady())
-//            {
-//                AIHeroClient target;
-//                if ((target = TargetSelector.GetTarget((W.Range))) == null)
-//                {
-//                    if ((target = TargetSelector.GetTargets(W.Range).Select(x => x.DistanceToPlayer()).FirstOrDefault()) == null)
-//                    {
-//                        W.Cast();
-//                    }
-//                }
-//            }
-//        }
-
-        private static void AutoCastW()
+        private static void LaneClear(OrbwalkerActionArgs args)
         {
-            if (MainMenu["Autocast"]["autoW"].GetValue<MenuBool>().Enabled && W.IsReady())
+            if (Orbwalker.LastTarget is AITurretClient && (args.Type == OrbwalkerType.AfterAttack) && Q.IsReady())
+            {
+                Q.Cast();
+            }
+        }
+
+        // Rewrite this garbage shit it looks so fucking ugly but i dont have the iq atm
+        private static void JungleClear(OrbwalkerActionArgs args)
+        {
+            if (MainMenu["Jungle"]["jungleQ"].GetValue<MenuBool>().Enabled
+                && ObjectManager.Player.ManaPercent >= MainMenu["Jungle"]["jungleQMana"].GetValue<MenuSlider>())
+            {
+                if (args.Target != null && args.Target.Type == GameObjectType.AIMinionClient)
+                {
+                    var mob = GameObjects.Jungle.Where(x => x.IsValidTarget(Q.Range) && x.GetJungleType() != JungleType.Unknown)
+                        .OrderByDescending(x => x.MaxHealth).FirstOrDefault();
+                    if (mob != null && mob.IsValidTarget() && args.Type == OrbwalkerType.AfterAttack)
+                    {
+                        Q.Cast();
+                    }
+                }
+            }
+
+            if (MainMenu["Jungle"]["jungleW"].GetValue<MenuBool>().Enabled
+                && ObjectManager.Player.ManaPercent >= MainMenu["Jungle"]["jungleWMana"].GetValue<MenuSlider>())
+            {
+                var mob = GameObjects.Jungle.Where(x => x.IsValidTarget(W.Range) && (x.GetJungleType() != JungleType.Unknown))
+                    .OrderBy(x => x.DistanceToPlayer()).FirstOrDefault();
+                if (mob != null && mob.IsValidTarget(W.Range) && mob.DistanceToPlayer() > ObjectManager.Player.GetRealAutoAttackRange() + 50f)
+                {
+                    var wMobPred = W.GetPrediction(mob);
+                    W.Cast(wMobPred.UnitPosition);
+                }
+            }
+        }
+
+        private static void AutoCasting()
+        {
+            if (MainMenu["Misc"]["Autocast"]["autoW"].GetValue<MenuBool>().Enabled && W.IsReady())
             {
                 var target = TargetSelector.GetTarget(W.Range);
                 var wPred = W.GetPrediction(target);
-                if (target.IsValidTarget(W.Range) && wPred.Hitchance == HitChance.Immobile)
+                if (target.IsValidTarget(W.Range) && (target.IsStunned || target.IsAsleep || target.IsSuppressed || target.IsCharmed
+                                                      || target.IsFleeing || target.IsFeared || target.IsTaunted))
                 {
                     W.Cast(wPred.UnitPosition);
                 }
             }
-        }
 
-        private static void AutoCastR()
-        {
-            if (MainMenu["Autocast"]["autoR"].GetValue<MenuBool>().Enabled && R.IsReady())
+            if (MainMenu["Misc"]["Autocast"]["autoR"].GetValue<MenuBool>().Enabled && R.IsReady())
             {
                 var target = TargetSelector.GetTarget(R.Range);
                 var rPred = R.GetPrediction(target);
-                if (target.IsValidTarget(R.Range) && rPred.Hitchance == HitChance.Immobile)
+                if (target.IsValidTarget(R.Range) && (target.IsStunned || target.IsSuppressed || target.IsAsleep))
                 {
                     R.Cast(rPred.CastPosition);
                 }
@@ -200,7 +223,25 @@ namespace mAxIO
 
         private static void KillSteal()
         {
-            if (MainMenu["Killsteal"]["killstealW"].GetValue<MenuBool>().Enabled && W.IsReady())
+            if (ObjectManager.Player.Level < MainMenu["Misc"]["Killsteal"]["killstealAALvl"].GetValue<MenuSlider>().Value)
+                return;
+            {
+                if (MainMenu["Misc"]["Killsteal"]["killstealAA"].GetValue<MenuBool>().Enabled && Orbwalker.CanAttack())
+                {
+                    foreach (var target in GameObjects.EnemyHeroes.Where(enemy =>
+                        enemy.IsValidTarget(585f) && !enemy.IsInvulnerable))
+                    {
+                        if (target.IsValid && target.Health < ObjectManager.Player.GetAutoAttackDamage(target) - 30.00 &&
+                            Orbwalker.ActiveMode == EnsoulSharp.SDK.OrbwalkerMode.Combo)
+                        {
+                            Orbwalker.Attack(target);
+                        }
+                    }
+                }
+            }
+
+            if (!MainMenu["Misc"]["Killsteal"]["killstealW"].GetValue<MenuBool>().Enabled || !W.IsReady())
+                return;
             {
                 foreach (var target in GameObjects.EnemyHeroes.Where(enemy =>
                     enemy.IsValidTarget(W.Range - 65f) && !enemy.IsInvulnerable))
@@ -213,41 +254,23 @@ namespace mAxIO
                     }
                 }
             }
-
-            if (ObjectManager.Player.Level <
-                MainMenu["Killsteal"]["killstealAALvl"].GetValue<MenuSlider>().Value) return;
-            {
-                if (!MainMenu["Killsteal"]["killstealAA"].GetValue<MenuBool>().Enabled ||
-                    !Orbwalker.CanAttack()) return;
-                foreach (var target in GameObjects.EnemyHeroes.Where(enemy =>
-                    enemy.IsValidTarget(600f) && !enemy.IsInvulnerable))
-                {
-                    if (target.IsValid && target.Health < ObjectManager.Player.GetAutoAttackDamage(target) - 30.00 &&
-                        Orbwalker.ActiveMode == OrbwalkerMode.Combo)
-                    {
-                        Orbwalker.Attack(target);
-                    }
-                }
-            }
         }
 
-        // Combo Switch-Case
         private static void OnUpdate(EventArgs args)
         {
             if (ObjectManager.Player.IsDead || MenuGUI.IsChatOpen || ObjectManager.Player.IsRecalling()) return;
             KillSteal();
-            AutoCastW();
-            AutoCastR();
+            AutoCasting();
         }
 
         private static void OnDraw(EventArgs args)
         {
-            if (MainMenu["Drawing"]["drawW"].GetValue<MenuBool>().Enabled)
+            if (MainMenu["Misc"]["Drawing"]["drawW"].GetValue<MenuBool>().Enabled)
             {
                 Render.Circle.DrawCircle(ObjectManager.Player.Position, W.Range, Color.Aqua);
             }
 
-            if (MainMenu["Drawing"]["drawR"].GetValue<MenuBool>().Enabled)
+            if (MainMenu["Misc"]["Drawing"]["drawR"].GetValue<MenuBool>().Enabled)
             {
                 Render.Circle.DrawCircle(ObjectManager.Player.Position, R.Range, Color.IndianRed);
             }
